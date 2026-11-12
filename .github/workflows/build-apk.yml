@@ -3,7 +3,9 @@ name: Build Pose CO V3 APK
 on:
   workflow_dispatch:
   push:
-    branches: [ main, master ]
+    branches:
+      - main
+      - master
 
 permissions:
   contents: read
@@ -11,48 +13,81 @@ permissions:
 env:
   JAVA_VERSION: '21'
   NODE_VERSION: '22'
+  ANDROID_HOME: /usr/local/lib/android/sdk
+  ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
 
 jobs:
   build-android:
+    name: Build Android APK
     runs-on: ubuntu-latest
+
     steps:
+      # 1. Récupération du dépôt
       - name: Récupérer le dépôt
         uses: actions/checkout@v4
 
+      # 2. Installation Node.js
       - name: Installer Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: npm
 
+      # 3. Installation Java
       - name: Installer Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
 
-      - name: Installer Android SDK
-        uses: android-actions/setup-android@v3
+      # 4. Configuration Android SDK sans ancien paquet tools
+      - name: Configurer Android SDK
+        run: |
+          echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
 
+      # 5. Vérification SDK
+      - name: Vérifier Android SDK
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          which sdkmanager
+          sdkmanager --version
+
+      # 6. Acceptation des licences
+      - name: Accepter les licences Android SDK
+        run: yes | sdkmanager --licenses
+
+      # 7. Installation des composants nécessaires
       - name: Installer la plateforme Android requise
-        run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+        run: |
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;36.0.0"
 
+      # 8. Installation des dépendances
       - name: Installer les dépendances
         run: npm install --no-audit --no-fund
 
+      # 9. Préparation du projet Capacitor
       - name: Préparer le projet Android Capacitor
         run: |
           if [ ! -d android ]; then
             npx cap add android
           fi
+
           node scripts/patch-android.mjs
+
           npx cap sync android
 
+      # 10. Compilation APK
       - name: Compiler l'APK debug
         working-directory: android
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
 
+      # 11. Publication APK
       - name: Publier l'APK
         uses: actions/upload-artifact@v4
         with:
