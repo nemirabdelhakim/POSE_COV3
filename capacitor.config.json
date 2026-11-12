@@ -1,0 +1,15 @@
+{
+  "appId": "dz.poseco.terrain",
+  "appName": "Pose CO",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "backgroundColor": "#0b6bcb",
+      "showSpinner": false
+    }
+  }
+}
